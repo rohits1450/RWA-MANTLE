@@ -4,6 +4,7 @@ import { Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 import { Toaster } from 'sonner'
 import { WalletProvider } from '@/context/WalletContext'
+import { AuthSync } from '@/components/auth/AuthSync'
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -31,7 +32,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${jakarta.variable} ${mono.variable}`} suppressHydrationWarning>
       <body style={{ fontFamily: 'var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif', background: '#080808' }}>
-        <WalletProvider>{children}</WalletProvider>
+        <WalletProvider>
+          <AuthSync />
+          {children}
+        </WalletProvider>
         <Toaster
           position="bottom-right"
           theme="dark"

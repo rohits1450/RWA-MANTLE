@@ -7,8 +7,10 @@
 import { NextResponse } from 'next/server'
 import { type Address } from 'viem'
 import {
-  isVaultDeployed, readPortfolioServer, readYieldsServer, readMethPriceServer,
+  isVaultDeployed, readPortfolioServer, readYieldsServer, readMethPriceServer, publicClient,
 } from '@/lib/rwa/serverVault'
+import { VAULT_ABI } from '@/lib/rwa/abi'
+import deployed from '@/lib/rwa-deployed.json'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -22,10 +24,11 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: 'VAULT_NOT_DEPLOYED' }, { status: 503 })
   }
   try {
-    const [pos, yields, methPriceUsd] = await Promise.all([
+    const [pos, yields, methPriceUsd, feeBps] = await Promise.all([
       readPortfolioServer(wallet as Address),
       readYieldsServer(),
       readMethPriceServer(),
+      publicClient.readContract({ address: deployed.vault as Address, abi: VAULT_ABI, functionName: 'feeBps' }) as Promise<bigint>,
     ])
     return NextResponse.json({
       ok: true,
@@ -37,6 +40,7 @@ export async function GET(req: Request) {
       usdyApyBps: yields.usdyApyBps,
       methApyBps: yields.methApyBps,
       methPriceUsd,
+      feeBps: Number(feeBps),
     })
   } catch (e) {
     // The resilient RPC already retried every endpoint; a failure here is a real

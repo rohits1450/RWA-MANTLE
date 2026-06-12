@@ -15,6 +15,7 @@ import {
 } from '@/lib/intent'
 import { setIntent, getIntent } from '@/lib/intentStore'
 import { chatJson } from '@/lib/openai'
+import { requireSelf } from '@/lib/auth'
 
 // PHASE-2 architecture (signal → code → narrative):
 //   1. SIGNAL-EXTRACTION LLM (below, temperature 0) — reports ONLY what the user
@@ -91,6 +92,9 @@ export async function POST(req: Request) {
   if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
     return NextResponse.json({ error: 'INVALID_ADDRESS' }, { status: 400 })
   }
+  // SIWE: you can only save a policy for the wallet you've signed in as.
+  const authErr = requireSelf(req, address)
+  if (authErr) return NextResponse.json({ error: authErr }, { status: 401 })
 
   const rawIntent = (body.rawIntent || '').toString()
   let rules: WealthRules

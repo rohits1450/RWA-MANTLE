@@ -16,7 +16,7 @@
 'use client'
 
 import type { Address } from 'viem'
-import { executeRebalance } from '@/lib/rwa/vaultClient'
+import { signRebalanceIntent } from '@/lib/rwa/vaultClient'
 
 /** JSON-schema-style shape (Byreal Agent Skills input-schema convention). */
 export interface RwaRebalanceInput {
@@ -57,14 +57,22 @@ export const rwaRebalanceSkill: AgentSkill<RwaRebalanceInput, RwaRebalanceOutput
     required: ['wallet', 'targetUsdyBps', 'targetMethBps', 'reason'],
   },
   async execute(input: RwaRebalanceInput): Promise<RwaRebalanceOutput> {
-    // The vault enforces the invariants on-chain (sum == 10000, mETH <= 7000),
-    // so we pass the brain's targets straight through and surface the real hash.
-    const txHash = await executeRebalance(
+    // GASLESS path: the user signs the intent (free, no gas), the agent relays it
+    // and pays gas. The vault still enforces the invariants (sum==10000, mETH<=70%)
+    // and verifies the user's signature, so it's safe + Web2-friendly.
+    const intent = await signRebalanceIntent(
       input.wallet as Address,
       input.targetUsdyBps,
       input.targetMethBps,
     )
-    return { txHash }
+    const res = await fetch('/api/rebalance/relay', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(intent),
+    })
+    const json = (await res.json()) as { ok?: boolean; txHash?: `0x${string}`; error?: string }
+    if (!res.ok || !json.ok || !json.txHash) throw new Error(json.error ?? 'Gasless relay failed')
+    return { txHash: json.txHash }
   },
 }
 

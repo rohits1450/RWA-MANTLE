@@ -9,6 +9,7 @@ import { useWallet } from '@/context/WalletContext'
 import { WalletButton, SwitchToMantleBanner } from '@/components/onboarding/WalletButton'
 import { AgentNav } from '@/components/shell/AgentNav'
 import { IntentChat } from '@/components/onboarding/IntentChat'
+import { ComplianceGate } from '@/components/onboarding/ComplianceGate'
 import { Wallet, ShieldCheck, Bot } from 'lucide-react'
 
 const TEAL = '#2dd4bf'
@@ -113,7 +114,9 @@ export default function OnboardingPage() {
             </div>
           </div>
         ) : (
-          <IntentChat />
+          <ComplianceGate>
+            <IntentChat />
+          </ComplianceGate>
         )}
       </main>
     </div>

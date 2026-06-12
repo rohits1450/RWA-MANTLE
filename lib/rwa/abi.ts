@@ -18,6 +18,10 @@ export const VAULT_ABI = [
   { type: 'function', name: 'withdraw', stateMutability: 'nonpayable', inputs: [{ name: 'asset', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [] },
   { type: 'function', name: 'rebalance', stateMutability: 'nonpayable', inputs: [{ name: 'usdyBps', type: 'uint256' }, { name: 'methBps', type: 'uint256' }], outputs: [] },
   { type: 'function', name: 'rebalanceFor', stateMutability: 'nonpayable', inputs: [{ name: 'user', type: 'address' }, { name: 'usdyBps', type: 'uint256' }, { name: 'methBps', type: 'uint256' }], outputs: [] },
+  // Gasless: user signs an EIP-712 RebalanceIntent off-chain, a relayer submits it.
+  { type: 'function', name: 'rebalanceWithSig', stateMutability: 'nonpayable', inputs: [{ name: 'user', type: 'address' }, { name: 'usdyBps', type: 'uint256' }, { name: 'methBps', type: 'uint256' }, { name: 'nonce', type: 'uint256' }, { name: 'deadline', type: 'uint256' }, { name: 'v', type: 'uint8' }, { name: 'r', type: 'bytes32' }, { name: 's', type: 'bytes32' }], outputs: [] },
+  { type: 'function', name: 'nonces', stateMutability: 'view', inputs: [{ name: 'user', type: 'address' }], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'feeBps', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   {
     type: 'function', name: 'getPortfolio', stateMutability: 'view',
     inputs: [{ name: 'user', type: 'address' }],
@@ -43,4 +47,16 @@ export const AMM_ABI = [
   { type: 'function', name: 'getAmountOut', stateMutability: 'view', inputs: [{ name: 'tokenIn', type: 'address' }, { name: 'amountIn', type: 'uint256' }], outputs: [{ type: 'uint256' }] },
   // Owner-only: anchor the pool spot price to the live market (arbitrage stand-in).
   { type: 'function', name: 'syncToPrice', stateMutability: 'nonpayable', inputs: [{ name: 'targetPriceE18', type: 'uint256' }], outputs: [] },
+] as const
+
+// On-chain KYC/eligibility registry. The agent compliance-officer key writes
+// verdicts; the vault gates deposits on isCompliant().
+export const COMPLIANCE_ABI = [
+  { type: 'function', name: 'isCompliant', stateMutability: 'view', inputs: [{ name: 'user', type: 'address' }], outputs: [{ type: 'bool' }] },
+  {
+    type: 'function', name: 'statusOf', stateMutability: 'view', inputs: [{ name: 'user', type: 'address' }],
+    outputs: [{ name: 'verified', type: 'bool' }, { name: 'accredited', type: 'bool' }, { name: 'riskScore', type: 'uint8' }, { name: 'jurisdiction', type: 'bytes2' }, { name: 'expiry', type: 'uint64' }],
+  },
+  { type: 'function', name: 'setCompliance', stateMutability: 'nonpayable', inputs: [{ name: 'user', type: 'address' }, { name: 'verified', type: 'bool' }, { name: 'accredited', type: 'bool' }, { name: 'riskScore', type: 'uint8' }, { name: 'jurisdiction', type: 'bytes2' }, { name: 'expiry', type: 'uint64' }], outputs: [] },
+  { type: 'function', name: 'revoke', stateMutability: 'nonpayable', inputs: [{ name: 'user', type: 'address' }, { name: 'reason', type: 'string' }], outputs: [] },
 ] as const

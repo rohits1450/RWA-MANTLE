@@ -16,6 +16,7 @@ import { getLastUsdyApy } from '@/lib/yieldHistory'
 import { decideDirection, computeAllocation } from '@/lib/agent/brain'
 import { readPortfolioServer, isVaultDeployed } from '@/lib/rwa/serverVault'
 import { addNotification } from '@/lib/notificationStore'
+import { requireSelf } from '@/lib/auth'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -28,6 +29,8 @@ export async function POST(req: Request) {
   if (!/^0x[a-fA-F0-9]{40}$/.test(wallet)) {
     return NextResponse.json({ ok: false, error: 'INVALID_ADDRESS' }, { status: 400 })
   }
+  const authErr = requireSelf(req, wallet)
+  if (authErr) return NextResponse.json({ ok: false, error: authErr }, { status: 401 })
 
   // Need a saved policy + a deployed, funded vault position to reason about.
   const rules = await getIntent(wallet)

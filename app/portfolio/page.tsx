@@ -20,6 +20,7 @@ import { StandaloneNavbar } from '@/components/shell/StandaloneNavbar'
 import { AgentNav } from '@/components/shell/AgentNav'
 import { WalletButton, SwitchToMantleBanner } from '@/components/onboarding/WalletButton'
 import { MetricCard } from '@/components/portfolio/MetricCard'
+import { TrustStrip } from '@/components/portfolio/TrustStrip'
 import { RiskBadge } from '@/components/portfolio/RiskBadge'
 import { PortfolioChart } from '@/components/portfolio/PortfolioChart'
 import { PortfolioLineChart } from '@/components/portfolio/PortfolioLineChart'
@@ -63,6 +64,8 @@ export default function PortfolioPage() {
   const [methPriceUsd, setMethPriceUsd] = useState<number | null>(null)
   // Live market snapshot (APYs, ETH 24h, realized volatility) for the data badge.
   const [market, setMarket] = useState<MarketSnapshot | null>(null)
+  // Live protocol management fee (bps) from the vault — shown in the trust strip.
+  const [feeBps, setFeeBps] = useState(0)
   const [apy, setApy] = useState({ usdyApyBps: DEMO.usdyApyBps, methApyBps: DEMO.methApyBps })
   const [loading, setLoading] = useState(true)
   const [isDemo, setIsDemo] = useState(!isVaultDeployed)
@@ -121,6 +124,7 @@ export default function PortfolioPage() {
           setMethTokens(s.methTokens)
           setChainMethBps(s.methBps)
           setMethPriceUsd(s.methPriceUsd > 0 ? s.methPriceUsd : null)
+          setFeeBps(s.feeBps)
           setApy({ usdyApyBps: s.usdyApyBps, methApyBps: s.methApyBps })
           setIsDemo(false)
           setLoadError(false)
@@ -213,6 +217,7 @@ export default function PortfolioPage() {
       setMethTokens(s.methTokens)
       setChainMethBps(s.methBps)
       setMethPriceUsd(s.methPriceUsd > 0 ? s.methPriceUsd : null)
+          setFeeBps(s.feeBps)
       setIsDemo(false)
       setHasLoaded(true)
       setFunding({ busy: false })
@@ -289,6 +294,7 @@ export default function PortfolioPage() {
           setMethTokens(s.methTokens)
           setChainMethBps(s.methBps)
           setMethPriceUsd(s.methPriceUsd > 0 ? s.methPriceUsd : null)
+          setFeeBps(s.feeBps)
           setIsDemo(false)
           setHasLoaded(true)
         } catch { /* keep prior values */ }
@@ -383,6 +389,7 @@ export default function PortfolioPage() {
 
             {/* Live data badge — proves nothing is hardcoded: price synced
                 on-chain, yields + realized volatility pulled live. */}
+            <TrustStrip wallet={evm.address} feeBps={feeBps} />
             <LiveDataBadge market={market} methPrice={methPriceUsd} />
 
             {/* Metric cards */}

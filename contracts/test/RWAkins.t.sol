@@ -4,20 +4,24 @@ pragma solidity ^0.8.24;
 import {MockRWAToken} from "../src/MockRWAToken.sol";
 import {RWAkinsAMM} from "../src/RWAkinsAMM.sol";
 import {RWAkinsVault} from "../src/RWAkinsVault.sol";
+import {ComplianceRegistry} from "../src/ComplianceRegistry.sol";
 
-/// Dependency-free test (no forge-std). Validates that a rebalance moves the
-/// position to ~target via REAL AMM swaps, and that the 70% cap holds.
+/// Dependency-free test (no forge-std). Validates real-swap rebalancing, the 70%
+/// cap, the compliance gate, and the protocol fee.
 contract RWAkinsTest {
     MockRWAToken usdy;
     MockRWAToken meth;
     RWAkinsAMM amm;
+    ComplianceRegistry registry;
     RWAkinsVault vault;
+    address treasury = address(0xBEEF);
 
     function setUp() public {
         usdy = new MockRWAToken("USDY", "USDY", 480);
         meth = new MockRWAToken("mETH", "mETH", 360);
         amm = new RWAkinsAMM(address(usdy), address(meth));
-        vault = new RWAkinsVault(address(usdy), address(meth), address(amm));
+        registry = new ComplianceRegistry();
+        vault = new RWAkinsVault(address(usdy), address(meth), address(amm), address(registry), treasury);
 
         // Seed deep liquidity at price 1800 USDY/mETH.
         uint256 seedMeth = 2000 ether;
@@ -27,6 +31,30 @@ contract RWAkinsTest {
         usdy.approve(address(amm), seedUsdy);
         meth.approve(address(amm), seedMeth);
         amm.addLiquidity(seedUsdy, seedMeth);
+
+        // This test contract is a verified holder.
+        registry.setCompliance(address(this), true, true, 0, bytes2("US"), 0);
+    }
+
+    function testComplianceGate() public {
+        // A non-compliant address cannot deposit.
+        usdy.mint(address(this), 1000 ether);
+        usdy.approve(address(vault), 1000 ether);
+        registry.revoke(address(this), "test");
+        (bool ok, ) = address(vault).call(abi.encodeWithSignature("deposit(address,uint256)", address(usdy), uint256(100 ether)));
+        require(!ok, "gate not enforced");
+        // Re-verify → deposit works.
+        registry.setCompliance(address(this), true, true, 0, bytes2("US"), 0);
+        vault.deposit(address(usdy), 100 ether);
+    }
+
+    function testFeeToTreasury() public {
+        usdy.mint(address(this), 10_000 ether);
+        usdy.approve(address(vault), 10_000 ether);
+        vault.deposit(address(usdy), 10_000 ether);
+        uint256 before = usdy.balanceOf(treasury);
+        vault.rebalance(3000, 7000);
+        require(usdy.balanceOf(treasury) > before, "no fee collected");
     }
 
     function testPriceFromPool() public view {

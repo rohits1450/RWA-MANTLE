@@ -25,6 +25,17 @@ Every number the agent reasons over and shows is sourced live; the on-chain stat
 
 > **On the assets:** USDY/mETH are deployed as testnet `MockRWAToken` contracts (real Ondo USDY / Mantle mETH are mainnet-only + KYC-gated). The **swap mechanics, price discovery, yields, and volatility are all real** — only the tokens are stand-ins. Mainnet is an address swap (real USDY/mETH + a real Mantle DEX router) plus Ondo KYC away; the agent/vault logic is unchanged.
 
+## Production-grade layer
+
+| Feature | How it works |
+|---|---|
+| **On-chain compliance gate** | `ComplianceRegistry` holds per-address KYC/eligibility. `POST /api/compliance/screen` runs an **AI-assisted screen** — hard OFAC-sanctioned-jurisdiction blocks in code + an LLM risk assessment — and writes the verdict on-chain; the **vault reverts deposits from unverified addresses** ([lib/compliance.ts](lib/compliance.ts)). |
+| **Wallet auth (SIWE)** | Sign-In With Ethereum issues an HMAC session cookie; per-user write endpoints derive the wallet from the **session, not a query param**, so you can only touch your own data ([lib/auth.ts](lib/auth.ts)). |
+| **Gasless rebalances** | The user signs an **EIP-712 RebalanceIntent** (free, no gas); the agent relays it on-chain and pays the gas (`vault.rebalanceWithSig`, `POST /api/rebalance/relay`). Web2-friendly — connect, click, sign. |
+| **Real slippage protection** | Each rebalance swap derives `minOut` from a live on-chain quote + tolerance — a bad pool/sandwich reverts instead of executing. |
+| **On-chain tokenomics** | A protocol **management fee** (`feeBps`, default 0.10%) is taken to a treasury on every rebalance. See [BUSINESS.md](BUSINESS.md). |
+| **Durable per-user storage** | Intents/notifications/compliance are wallet-keyed; KV-backed in production (in-memory fallback locally). See [DEPLOYMENT.md](DEPLOYMENT.md). |
+
 ---
 
 

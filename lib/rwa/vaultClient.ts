@@ -69,6 +69,7 @@ export interface VaultSnapshot {
   usdyApyBps: number
   methApyBps: number
   methPriceUsd: number
+  feeBps: number
 }
 
 /**
@@ -88,6 +89,7 @@ export async function fetchVaultSnapshot(wallet: string): Promise<VaultSnapshot>
     usdyApyBps: Number(j.usdyApyBps),
     methApyBps: Number(j.methApyBps),
     methPriceUsd: Number(j.methPriceUsd),
+    feeBps: Number(j.feeBps ?? 0),
   }
 }
 
@@ -174,6 +176,67 @@ export async function executeRebalance(
   })
   await publicClient.waitForTransactionReceipt({ hash })
   return hash
+}
+
+export interface SignedRebalanceIntent {
+  user: Address
+  usdyBps: number
+  methBps: number
+  nonce: string
+  deadline: string
+  signature: `0x${string}`
+}
+
+/**
+ * GASLESS rebalance: the user signs an EIP-712 RebalanceIntent (a free signature,
+ * no gas, no tx) authorising this exact split. The agent then relays it on-chain
+ * and pays the gas (POST /api/rebalance/relay → vault.rebalanceWithSig).
+ */
+export async function signRebalanceIntent(
+  account: Address, usdyBps: number, methBps: number,
+): Promise<SignedRebalanceIntent> {
+  const nonce = (await publicClient.readContract({
+    address: RWA.vault, abi: VAULT_ABI, functionName: 'nonces', args: [account],
+  })) as bigint
+  const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600) // 1h
+  const wc = getWalletClient()
+  const signature = await wc.signTypedData({
+    account,
+    domain: { name: 'RWAkinsVault', version: '1', chainId: MANTLE_SEPOLIA_CHAIN_ID, verifyingContract: RWA.vault },
+    types: {
+      RebalanceIntent: [
+        { name: 'user', type: 'address' },
+        { name: 'usdyBps', type: 'uint256' },
+        { name: 'methBps', type: 'uint256' },
+        { name: 'nonce', type: 'uint256' },
+        { name: 'deadline', type: 'uint256' },
+      ],
+    },
+    primaryType: 'RebalanceIntent',
+    message: { user: account, usdyBps: BigInt(usdyBps), methBps: BigInt(methBps), nonce, deadline },
+  })
+  return { user: account, usdyBps, methBps, nonce: nonce.toString(), deadline: deadline.toString(), signature }
+}
+
+/**
+ * Sign-In With Ethereum: fetch a nonce + message, sign it with the wallet (free,
+ * no gas), and exchange it for a session cookie. After this the per-user write
+ * endpoints accept requests for THIS wallet only.
+ */
+export async function signInWithEthereum(account: Address): Promise<boolean> {
+  const nRes = await fetch('/api/auth/nonce', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ address: account }),
+  })
+  if (!nRes.ok) return false
+  const { message } = (await nRes.json()) as { message: string }
+  const wc = getWalletClient()
+  const signature = await wc.signMessage({ account, message })
+  const vRes = await fetch('/api/auth/verify', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ address: account, nonce: message.split('Nonce: ')[1]?.trim(), signature }),
+  })
+  return vRes.ok
 }
 
 export const fmt = (v: bigint, dp = 2) => {
