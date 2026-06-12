@@ -5,13 +5,12 @@ RWAkins is a Personal CFO agent that removes the complexity of real-world asset 
 - **USDY** — Ondo's tokenized US Treasury bonds. The stable, low-risk leg.
 - **mETH** — Mantle Staked ETH. The growth, higher-yield leg.
 
-Yields and prices are **not hardcoded** — they are pulled live and synced on-chain (see *Live & Dynamic* below).
+
 
 ---
 
-## Live & Dynamic — nothing hardcoded
+## Live System
 
-Every number the agent reasons over and shows is sourced live; the on-chain state is kept in sync with the real market by the agent itself.
 
 | System | How it's live |
 |---|---|
@@ -109,7 +108,7 @@ Every number the agent reasons over and shows is sourced live; the on-chain stat
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/<your-repo>/rwakins
+git clone https://github.com/<your-repo>/RWAMantle
 cd rwakins
 npm install
 ```

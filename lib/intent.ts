@@ -1,5 +1,4 @@
-﻿// Built by vsrupeshkumar
-// Shared "wealth rules" model for the AI CFO onboarding flow.
+﻿// Shared "wealth rules" model for the AI CFO onboarding flow.
 //
 // A user describes their financial goals in plain English on /onboarding. That
 // free text is turned into a structured, on-chain-safe allocation policy here.
